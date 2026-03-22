@@ -28,7 +28,7 @@ local function create_split()
   return { buffer_id = buffer_id, window_id = window_id, cleanup = cleanup }, nil
 end
 
-local function process_stdout(buffer_id, exit_code)
+local function read_first_line(buffer_id, exit_code)
   local SIGINT = 130
   if exit_code == SIGINT then
     return nil, nil
@@ -51,18 +51,18 @@ local function process_stdout(buffer_id, exit_code)
 end
 
 local function fzf(callback)
-  local split, error = create_split()
-  if split == nil then
-    callback(nil, error)
+  local split, err = create_split()
+  if not split then
+    callback(nil, err)
     return
   end
 
   local job_id = vim.fn.jobstart({ 'fzf' }, {
     term = true,
     on_exit = function(_job_id, exit_code, _event_type) 
-      local result, error = process_stdout(split.buffer_id, exit_code)
+      local result, err = read_first_line(split.buffer_id, exit_code)
       split.cleanup()
-      callback(result, error)
+      callback(result, err)
     end 
   })
 
@@ -75,14 +75,14 @@ local function fzf(callback)
   vim.cmd.startinsert()
 end
 
-local function find()
-  fzf(function(result, error)
-    if error ~= nil then
-      vim.notify(error, vim.log.levels.ERROR)
+function M.find()
+  fzf(function(result, err)
+    if err then
+      vim.notify(err, vim.log.levels.ERROR)
       return
     end
 
-    if result == "" or result == nil then 
+    if not result or result == "" then
       return
     end
 
@@ -90,7 +90,5 @@ local function find()
     vim.cmd.edit(name)
   end)
 end
-
-M.find = find
 
 return M
